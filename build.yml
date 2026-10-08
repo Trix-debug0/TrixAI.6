@@ -1,0 +1,58 @@
+# Place this file at: .github/workflows/build.yml  (repo root)
+# Required secret: GEMINI_API_KEY  (Repo -> Settings -> Secrets and variables -> Actions)
+
+name: Build Trix AI APK
+
+on:
+  workflow_dispatch:
+  push:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Unzip project if uploaded as a zip
+        run: |
+          for z in *.zip; do
+            if [ -f "$z" ]; then echo "Unzipping $z"; unzip -q -o "$z"; fi
+          done
+
+      - name: Locate Gradle project
+        id: p
+        run: |
+          f=$(find . -name settings.gradle.kts | head -1)
+          if [ -z "$f" ]; then
+            echo "settings.gradle.kts not found anywhere in the repo. Files present:"
+            find . -maxdepth 3 -not -path './.git/*' | head -50
+            exit 1
+          fi
+          echo "Project directory: $(dirname "$f")"
+          echo "dir=$(dirname "$f")" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+
+      - name: Write local.properties
+        working-directory: ${{ steps.p.outputs.dir }}
+        run: |
+          echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" > local.properties
+          echo "GEMINI_MODEL=gemini-2.5-flash" >> local.properties
+
+      - name: Build debug APK
+        working-directory: ${{ steps.p.outputs.dir }}
+        run: gradle assembleDebug --no-daemon
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: TrixAI-debug-apk
+          path: ${{ steps.p.outputs.dir }}/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 14
