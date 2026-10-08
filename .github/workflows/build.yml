@@ -1,5 +1,3 @@
-# Place this file at: .github/workflows/build.yml  (repo root)
-# Required secret: GEMINI_API_KEY  (Repo -> Settings -> Secrets and variables -> Actions)
 
 name: Build Trix AI APK
 
